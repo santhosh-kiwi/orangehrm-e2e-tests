@@ -19,7 +19,7 @@ test.describe('Admin - User Management', () => {
   test('adding a new system user succeeds and it appears in the user list', async ({ page }) => {
     await adminUsersPage.addUser({
       userRole: 'Admin',
-      employeeName: 'Admin',
+      employeeName: 'a',
       status: 'Enabled',
       username,
       password,
@@ -68,7 +68,7 @@ test.describe('Admin - User Management', () => {
     await adminUsersPage.addButton.click();
     await adminUsersPage.fillUserForm({
       userRole: 'Admin',
-      employeeName: 'Admin',
+      employeeName: 'a',
       status: 'Enabled',
       username,
       password: generatePassword(),

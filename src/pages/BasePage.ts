@@ -14,6 +14,12 @@ export abstract class BasePage {
 
   async waitForPageLoad(): Promise<void> {
     await this.page.waitForLoadState('domcontentloaded');
+    // Checking spinner.count() immediately races the spinner actually
+    // mounting for AJAX-driven actions (e.g. table search/filter) — it can
+    // read 0 a few ms before the spinner appears, skipping the wait
+    // entirely. Network idle is a more reliable signal that an in-flight
+    // XHR-driven update (spinner or not) has actually settled.
+    await this.page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => undefined);
     const spinner = this.page.locator('.oxd-loading-spinner');
     if (await spinner.count()) {
       await spinner.first().waitFor({ state: 'hidden', timeout: 15_000 }).catch(() => undefined);
