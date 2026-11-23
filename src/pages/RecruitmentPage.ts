@@ -98,6 +98,10 @@ export class RecruitmentPage extends BasePage {
     await this.fillCandidateForm(candidate);
     await this.saveButton.click();
     await this.expectToastMessage(/Successfully Saved/i);
+    // The app redirects to the new candidate's page (addCandidate/<id>) a few
+    // seconds after the toast. Wait for it, or the caller's next goto races
+    // the redirect and fails with "interrupted by another navigation".
+    await this.page.waitForURL(/\/recruitment\/addCandidate\/\d+/);
   }
 
   async searchByName(name: string): Promise<void> {

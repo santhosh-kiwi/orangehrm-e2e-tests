@@ -4,6 +4,11 @@ import { generateCandidate } from '../../src/utils/testData';
 import { loginAsAdmin } from '../../src/utils/auth';
 
 test.describe('Recruitment - Candidates', () => {
+  // These tests add a candidate (save, toast, redirect) and then load the list
+  // and search, often 4+ page loads on the slow shared demo site. That doesn't
+  // reliably fit in the default 45s on WebKit.
+  test.describe.configure({ timeout: 120_000 });
+
   let recruitmentPage: RecruitmentPage;
 
   test.beforeEach(async ({ page }) => {
