@@ -88,7 +88,13 @@ export class AdminUsersPage extends BasePage {
     // between one moment and the next. Whichever employee comes back first
     // for a broad, near-universally-matching query is picked, rather than
     // requiring a specific name to still exist.
-    const suggestion = this.page.locator('.oxd-autocomplete-option').first();
+    // While the lookup is in flight the dropdown shows a single "Searching...."
+    // placeholder row, also an .oxd-autocomplete-option. Clicking it selects
+    // nothing, so wait for a real result row instead.
+    const suggestion = this.page
+      .locator('.oxd-autocomplete-option')
+      .filter({ hasNotText: /Searching|No Records Found/ })
+      .first();
     const invalidMessage = this.employeeNameInput.locator('xpath=following-sibling::span[contains(@class,"input-group__message")]');
 
     let selected = false;
@@ -96,10 +102,6 @@ export class AdminUsersPage extends BasePage {
       await this.employeeNameInput.click();
       await this.employeeNameInput.fill('');
       await this.employeeNameInput.pressSequentially(data.employeeName, { delay: 200 + attempt * 100 });
-      // Give the debounced lookup's network round-trip room to complete
-      // before polling for the suggestion (recording/tracing overhead can
-      // slow this down compared to an unrecorded run).
-      await this.page.waitForTimeout(1_000);
       try {
         await expect(suggestion).toBeVisible({ timeout: 10_000 });
         await suggestion.click();

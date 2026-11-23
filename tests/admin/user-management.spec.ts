@@ -4,7 +4,10 @@ import { loginAsAdmin } from '../../src/utils/auth';
 import { generateUsername, generatePassword } from '../../src/utils/testData';
 
 test.describe('Admin - User Management', () => {
-  test.describe.configure({ mode: 'serial' });
+  // fillUserForm retries the Employee Name autocomplete up to 3 times (~20s
+  // each worst case) on the shared demo site, which doesn't fit in the
+  // default 45s test timeout. Give these tests room to finish their retries.
+  test.describe.configure({ mode: 'serial', timeout: 120_000 });
 
   const username = generateUsername('e2e_admin');
   const password = generatePassword();
