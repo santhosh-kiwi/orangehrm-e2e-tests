@@ -39,7 +39,7 @@ test.describe('Authentication - Login', () => {
     await expect(loginPage.requiredFieldErrors).toHaveCount(1);
   });
 
-  test('password field hide the typed characters', async () => {
+  test('password field hides the typed characters', async () => {
     await expect(loginPage.passwordInput).toHaveAttribute('type', 'password');
   });
 
