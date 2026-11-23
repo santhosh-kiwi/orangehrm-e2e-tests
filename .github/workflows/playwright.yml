@@ -30,7 +30,9 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps ${{ matrix.project }}
+        # Chromium is always needed: global-setup logs in with chromium.launch()
+        # before any project runs, even in the firefox and webkit jobs.
+        run: npx playwright install --with-deps chromium ${{ matrix.project }}
 
       - name: Run Playwright tests
         run: npx playwright test --project=${{ matrix.project }}
