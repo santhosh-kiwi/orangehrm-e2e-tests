@@ -1,5 +1,9 @@
 # OrangeHRM E2E Test Suite
 
+[![Playwright E2E Tests](https://github.com/santhosh-kiwi/orangehrm-e2e-tests/actions/workflows/playwright.yml/badge.svg?branch=main)](https://github.com/santhosh-kiwi/orangehrm-e2e-tests/actions/workflows/playwright.yml)
+
+**Latest test report (Allure):** https://santhosh-kiwi.github.io/orangehrm-e2e-tests/
+
 End-to-end test automation for the [OrangeHRM public demo site](https://opensource-demo.orangehrmlive.com), built with [Playwright](https://playwright.dev/) + TypeScript.
 
 ## Status
@@ -9,14 +13,14 @@ End-to-end test automation for the [OrangeHRM public demo site](https://opensour
 | Auth (Login) | `LoginPage` | `tests/auth/login.spec.ts` | 9 | ✅ |
 | Dashboard | `DashboardPage`, `Sidebar`, `Topbar` | `tests/dashboard/dashboard.spec.ts` | 4 | ✅ |
 | Admin (User Management) | `AdminUsersPage` | `tests/admin/user-management.spec.ts` | 8 | ✅ |
-| Recruitment (Candidates) | `RecruitmentPage` | `tests/recruitment/candidates.spec.ts` | 8 | ✅ |
+| Recruitment (Candidates) | `RecruitmentPage` | `tests/recruitment/candidates.spec.ts` | 7 | ✅ |
 | PIM | — | — | — | not started |
 | Leave | — | — | — | not started |
 | Time | `AttendancePage`, `TimesheetPage` (untested) | — | — | not started |
 | My Info | — | — | — | not started |
 | Performance | — | — | — | not started |
 
-**29 tests, all passing**, run repeatedly against the live site (not just written and assumed to work). `src/pages/AttendancePage.ts` and `src/pages/TimesheetPage.ts` exist from earlier exploratory work but have no spec exercising them yet — treat them as a draft, not verified.
+**28 tests, run on each of Chromium, Firefox and WebKit**, run repeatedly against the live site (not just written and assumed to work). `src/pages/AttendancePage.ts` and `src/pages/TimesheetPage.ts` exist from earlier exploratory work but have no spec exercising them yet — treat them as a draft, not verified.
 
 ## Stack
 
@@ -69,9 +73,10 @@ npm run test:debug        # step through with the inspector
 
 ```bash
 npm run report:html                 # opens Playwright's HTML report
-npm run report:allure:generate      # builds allure-report/ from allure-results/
-npm run report:allure:open          # serves the Allure report
+npm run report:allure:generate      # builds a single-file allure-report/index.html
 ```
+
+The Allure report is a single `index.html`, so it opens with a double-click.
 
 Every run also captures a trace, screenshot, and video **on failure only** (see `playwright.config.ts`), viewable with:
 
@@ -81,7 +86,23 @@ npx playwright show-trace <path-to-trace.zip>
 
 ## CI
 
-`.github/workflows/playwright.yml` runs the suite on push/PR to `main`, on a daily schedule (to catch drift on the shared demo site independent of code changes), and on manual dispatch — across Chromium, Firefox, and WebKit in parallel. Reports are uploaded as build artifacts; Allure results are merged and published as a combined report artifact.
+`.github/workflows/playwright.yml` runs on push/PR to `main`, on a daily schedule (to catch drift on the shared demo site independent of code changes), and on manual dispatch.
+
+| Job | What it does |
+|---|---|
+| **Typecheck & lint** | `tsc --noEmit` and a rule that fails on any `waitForTimeout` hard wait. Tests only start if this passes. |
+| **test** (chromium / firefox / webkit) | Matrix of 3 parallel jobs, `fail-fast: false`, browsers cached per Playwright version, 2 retries on CI. Uploads HTML report and Allure results. |
+| **publish-allure-report** | Merges all three browsers' Allure results into one single-file report artifact. |
+| **deploy-report** | On `main` only: publishes that report to GitHub Pages (link above). |
+
+Hardening:
+
+- **Branch protection on `main`:** changes go through a pull request, and the typecheck job plus all three browser jobs must pass before merge.
+- **Least-privilege tokens:** the workflow defaults to `contents: read`; only the Pages deploy job gets write access.
+- **Concurrency:** a new push to a PR cancels that PR's outdated run; runs on `main` are never cancelled.
+- **Dependabot** (`.github/dependabot.yml`) opens weekly PRs for npm packages and GitHub Actions, which run the full suite like any other PR.
+- **Claude code review** (`.github/workflows/claude-code-review.yml`) reviews every PR automatically; `@claude` in a PR or issue comment asks it directly.
+- **CODEOWNERS** and a **PR template** standardize review and PR descriptions.
 
 ## Framework design notes
 

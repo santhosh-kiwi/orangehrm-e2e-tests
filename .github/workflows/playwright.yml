@@ -10,8 +10,40 @@ on:
     - cron: '0 3 * * *'
   workflow_dispatch: {}
 
+# Least privilege: jobs can only read the repo unless they ask for more.
+permissions:
+  contents: read
+
+# A new push to the same PR cancels its older, now-outdated run.
+# Runs on main are never cancelled, so every merge gets a full result.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  checks:
+    name: Typecheck & lint
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Forbid hard waits (waitForTimeout)
+        run: npm run lint:no-hard-waits
+
   test:
+    needs: checks
     timeout-minutes: 30
     runs-on: ubuntu-latest
     strategy:
@@ -29,10 +61,24 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Browsers are re-downloaded only when package-lock.json (the Playwright
+      # version) changes.
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ matrix.project }}-${{ hashFiles('package-lock.json') }}
+
+      # Chromium is always needed: global-setup logs in with chromium.launch()
+      # before any project runs, even in the firefox and webkit jobs.
       - name: Install Playwright browsers
-        # Chromium is always needed: global-setup logs in with chromium.launch()
-        # before any project runs, even in the firefox and webkit jobs.
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium ${{ matrix.project }}
+
+      - name: Install browser system dependencies (browsers cached)
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium ${{ matrix.project }}
 
       - name: Run Playwright tests
         run: npx playwright test --project=${{ matrix.project }}
@@ -61,6 +107,7 @@ jobs:
   publish-allure-report:
     if: ${{ !cancelled() }}
     needs: test
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -97,3 +144,27 @@ jobs:
           name: allure-report
           path: allure-report
           retention-days: 14
+
+      - name: Upload report for GitHub Pages
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: allure-report
+
+  # Publishes the latest main-branch Allure report to GitHub Pages, so it is
+  # a link instead of a download. Pull requests never deploy.
+  deploy-report:
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+    needs: publish-allure-report
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

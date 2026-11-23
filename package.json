@@ -14,7 +14,8 @@
     "report:html": "playwright show-report",
     "report:allure:generate": "allure generate allure-results --single-file --clean -o allure-report",
     "report:allure:open": "allure open allure-report",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint:no-hard-waits": "! grep -rnF --include='*.ts' '.waitForTimeout(' src tests"
   },
   "keywords": [],
   "author": "",
