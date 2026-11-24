@@ -1,31 +1,22 @@
-import { test, expect } from '@playwright/test';
-import { AdminUsersPage } from '../../src/pages/AdminUsersPage';
-import { loginAsAdmin } from '../../src/utils/auth';
+import { test, expect } from '../../src/fixtures';
 import { generateUsername, generatePassword } from '../../src/utils/testData';
 
 test.describe('Admin - User Management', () => {
-  // fillUserForm retries the Employee Name autocomplete up to 3 times (~20s
-  // each worst case) on the shared demo site, which doesn't fit in the
-  // default 45s test timeout. Give these tests room to finish their retries.
-  test.describe.configure({ mode: 'serial', timeout: 120_000 });
+  // Creating a user goes through the Employee Name autocomplete, which retries
+  // up to 3 times (~20s each worst case) on the shared demo site. That doesn't
+  // fit in the default 45s test timeout.
+  test.describe.configure({ timeout: 120_000 });
 
-  const username = generateUsername('e2e_admin');
-  const password = generatePassword();
-  let adminUsersPage: AdminUsersPage;
+  test('adding a new system user succeeds and it appears in the user list', { tag: '@smoke' }, async ({ adminUsersPage, cleanup, page }) => {
+    const username = generateUsername('e2e_admin');
+    cleanup(`delete system user ${username}`, () => adminUsersPage.deleteUserIfExists(username));
 
-  test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page);
-    adminUsersPage = new AdminUsersPage(page);
-    await adminUsersPage.open();
-  });
-
-  test('adding a new system user succeeds and it appears in the user list', async ({ page }) => {
     await adminUsersPage.addUser({
       userRole: 'Admin',
       employeeName: 'a',
       status: 'Enabled',
       username,
-      password,
+      password: generatePassword(),
     });
 
     await adminUsersPage.expectToastMessage('Successfully Saved');
@@ -35,28 +26,28 @@ test.describe('Admin - User Management', () => {
     await expect(adminUsersPage.rowForUsername(username)).toBeVisible();
   });
 
-  test('searching by the created username filters the list to just that record', async () => {
-    await adminUsersPage.searchByUsername(username);
-    await expect(adminUsersPage.rowForUsername(username)).toBeVisible();
+  test('searching by username filters the list to just that record', async ({ adminUsersPage, systemUser }) => {
+    await adminUsersPage.searchByUsername(systemUser.username);
+    await expect(adminUsersPage.rowForUsername(systemUser.username)).toBeVisible();
     await expect(adminUsersPage.tableRows).toHaveCount(1);
   });
 
-  test('searching by a username that does not exist shows no records', async () => {
+  test('searching by a username that does not exist shows no records', async ({ adminUsersPage }) => {
     await adminUsersPage.searchByUsername(`nonexistent_${Date.now()}`);
     await adminUsersPage.expectNoRecordsFound();
   });
 
-  test('editing the created user\'s status to Disabled persists', async () => {
-    await adminUsersPage.searchByUsername(username);
-    await adminUsersPage.openEditFor(username);
+  test('editing a user\'s status to Disabled persists', async ({ adminUsersPage, systemUser }) => {
+    await adminUsersPage.searchByUsername(systemUser.username);
+    await adminUsersPage.openEditFor(systemUser.username);
     await adminUsersPage.editStatus('Disabled');
     await adminUsersPage.expectToastMessage('Successfully Updated');
 
-    await adminUsersPage.searchByUsername(username);
-    await expect(adminUsersPage.rowForUsername(username)).toContainText('Disabled');
+    await adminUsersPage.searchByUsername(systemUser.username);
+    await expect(adminUsersPage.rowForUsername(systemUser.username)).toContainText('Disabled');
   });
 
-  test('adding a user with required fields empty shows validation errors', async () => {
+  test('adding a user with required fields empty shows validation errors', async ({ adminUsersPage }) => {
     await adminUsersPage.addButton.click();
     await expect(adminUsersPage.saveButton).toBeVisible();
     await adminUsersPage.saveButton.click();
@@ -64,16 +55,15 @@ test.describe('Admin - User Management', () => {
     await adminUsersPage.cancelButton.click();
   });
 
-  test('creating a user with an already-taken username is rejected', async ({ page }) => {
-    // Reuse the username created earlier in this run rather than a
-    // pre-existing real account, so we never risk touching the real "Admin"
-    // user even if the save unexpectedly succeeded.
+  test('creating a user with an already-taken username is rejected', async ({ adminUsersPage, systemUser, page }) => {
+    // Reuses this test's own user rather than a pre-existing real account, so
+    // we never risk touching the real "Admin" user even if the save succeeded.
     await adminUsersPage.addButton.click();
     await adminUsersPage.fillUserForm({
       userRole: 'Admin',
       employeeName: 'a',
       status: 'Enabled',
-      username,
+      username: systemUser.username,
       password: generatePassword(),
     });
     await adminUsersPage.saveButton.click();
@@ -81,7 +71,7 @@ test.describe('Admin - User Management', () => {
     await adminUsersPage.cancelButton.click();
   });
 
-  test('adding a user with mismatched password and confirm password shows a validation error', async ({ page }) => {
+  test('adding a user with mismatched password and confirm password shows a validation error', async ({ adminUsersPage, page }) => {
     await adminUsersPage.addButton.click();
     await expect(adminUsersPage.saveButton).toBeVisible();
 
@@ -94,12 +84,12 @@ test.describe('Admin - User Management', () => {
     await adminUsersPage.cancelButton.click();
   });
 
-  test('deleting the created user removes it from the list', async () => {
-    await adminUsersPage.searchByUsername(username);
-    await adminUsersPage.deleteUser(username);
+  test('deleting a user removes it from the list', async ({ adminUsersPage, systemUser }) => {
+    await adminUsersPage.searchByUsername(systemUser.username);
+    await adminUsersPage.deleteUser(systemUser.username);
     await adminUsersPage.expectToastMessage('Successfully Deleted');
 
-    await adminUsersPage.searchByUsername(username);
+    await adminUsersPage.searchByUsername(systemUser.username);
     await adminUsersPage.expectNoRecordsFound();
   });
 });

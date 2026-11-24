@@ -135,7 +135,20 @@ export class RecruitmentPage extends BasePage {
   }
 
   async expectCandidateNotVisible(name: string): Promise<void> {
-    const visible = await this.row(name).count();
-    expect(visible).toBe(0);
+    // Web-first assertion: retries until the row is gone, unlike a one-off count().
+    await expect(this.row(name)).toHaveCount(0);
+  }
+
+  /**
+   * Cleanup helper: deletes the candidate if it still exists. Safe to call when
+   * a test already deleted it, or when creating it failed halfway.
+   */
+  async deleteCandidateIfExists(candidate: { lastName: string; fullName: string }): Promise<void> {
+    await this.openCandidateList();
+    await this.searchByName(candidate.lastName);
+    // A one-off count() is intended here: this is a branch, not an assertion.
+    if ((await this.row(candidate.fullName).count()) > 0) {
+      await this.deleteCandidateByName(candidate.fullName);
+    }
   }
 }

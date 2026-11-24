@@ -17,29 +17,11 @@ export function generatePassword(): string {
   return `Aut0!${faker.string.alphanumeric(6)}`;
 }
 
-export interface EmployeeData {
-  firstName: string;
-  middleName: string;
-  lastName: string;
-}
-
-export function generateEmployee(): EmployeeData {
-  return {
-    firstName: faker.person.firstName(),
-    middleName: faker.person.middleName(),
-    lastName: `${faker.person.lastName()}_${uniqueSuffix()}`,
-  };
-}
-
-export interface SystemUserData {
-  username: string;
-  password: string;
-  employeeName: string;
-}
-
 export interface CandidateData {
   firstName: string;
   lastName: string;
+  /** "First Last", as the candidate list displays it. */
+  fullName: string;
   email: string;
   contactNumber: string;
   keywords: string;
@@ -47,9 +29,12 @@ export interface CandidateData {
 
 export function generateCandidate(): CandidateData {
   const suffix = uniqueSuffix();
+  const firstName = faker.person.firstName();
+  const lastName = `${faker.person.lastName()}_${suffix}`;
   return {
-    firstName: faker.person.firstName(),
-    lastName: `${faker.person.lastName()}_${suffix}`,
+    firstName,
+    lastName,
+    fullName: `${firstName} ${lastName}`,
     email: `e2e.candidate.${suffix}@example.com`,
     contactNumber: faker.string.numeric(10),
     keywords: 'Playwright, Automation',
