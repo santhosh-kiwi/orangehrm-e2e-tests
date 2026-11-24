@@ -1,4 +1,4 @@
-import { Page, Locator, expect } from '@playwright/test';
+import { Page, expect } from '@playwright/test';
 
 export abstract class BasePage {
   protected readonly page: Page;
@@ -33,9 +33,5 @@ export abstract class BasePage {
 
   get currentUrl(): string {
     return this.page.url();
-  }
-
-  protected recordLocator(record: Locator, name: string | RegExp): Locator {
-    return record.filter({ hasText: name });
   }
 }

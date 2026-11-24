@@ -174,4 +174,24 @@ export class AdminUsersPage extends BasePage {
     await expect(confirmButton).toBeVisible();
     await confirmButton.click();
   }
+
+  /** After saving a new user the app redirects back to the user list; wait for it. */
+  async waitForUserList(): Promise<void> {
+    await this.page.waitForURL(/viewSystemUsers/);
+    await expect(this.addButton).toBeVisible();
+  }
+
+  /**
+   * Cleanup helper: deletes the user if it still exists. Safe to call when a
+   * test already deleted it, or when creating it failed halfway.
+   */
+  async deleteUserIfExists(username: string): Promise<void> {
+    await this.open();
+    await this.searchByUsername(username);
+    // A one-off count() is intended here: this is a branch, not an assertion.
+    if ((await this.rowForUsername(username).count()) > 0) {
+      await this.deleteUser(username);
+      await this.expectToastMessage('Successfully Deleted');
+    }
+  }
 }
